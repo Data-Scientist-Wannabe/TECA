@@ -2,7 +2,10 @@
 #include "teca_cf_reader.h"
 #include "teca_normalize_coordinates.h"
 #include "teca_normalize_coordinates.h"
+#include "teca_file_util.h"
+#include "teca_cartesian_mesh_reader.h"
 #include "teca_cartesian_mesh_writer.h"
+#include "teca_dataset_diff.h"
 #include "teca_index_executive.h"
 #include "teca_mpi_manager.h"
 #include "teca_system_interface.h"
@@ -17,6 +20,7 @@ int parse_command_line(
     int argc,
     char **argv,
     int rank,
+    string &output,
     const p_teca_cf_reader &cf_reader,
     const p_teca_cartesian_mesh_writer &vtk_writer,
     const p_teca_index_executive exec);
@@ -35,9 +39,15 @@ int main(int argc, char **argv)
     p_teca_cartesian_mesh_writer vtk_writer = teca_cartesian_mesh_writer::New();
     p_teca_index_executive exec = teca_index_executive::New();
 
+    string baseline;
+
     // initialize them from command line options
-    if (parse_command_line(argc, argv, rank, cf_reader, vtk_writer, exec))
+    if (parse_command_line(argc, argv, rank, baseline, cf_reader, vtk_writer, exec))
         return -1;
+
+    int have_baseline = 0;
+    if (teca_file_util::file_exists(baseline.c_str()))
+        have_baseline = 1;
 
     // build the pipeline
     p_teca_normalize_coordinates coords = teca_normalize_coordinates::New();
@@ -49,12 +59,36 @@ int main(int argc, char **argv)
     // run the pipeline
     vtk_writer->update();
 
+    // regression test
+    if (have_baseline)
+    {
+        // run the test
+        p_teca_cartesian_mesh_writer rea = teca_cartesian_mesh_writer::New();
+        rea->set_file_name(baseline);
+
+        p_teca_dataset_diff diff = teca_dataset_diff::New();
+        diff->set_input_connection(0, rea->get_output_port());
+        diff->set_input_connection(1, coords->get_output_port());
+        diff->update();
+    }
+    else
+    {
+        // make a baseline
+        if (rank == 0)
+            cerr << "generating baseline image " << baseline << endl;
+
+        vtk_writer->set_input_connection(coords->get_output_port());
+        vtk_writer->set_executive(exec);
+        vtk_writer->update();
+    }
+
     return 0;
 }
 
 
 // --------------------------------------------------------------------------
 int parse_command_line(int argc, char **argv, int rank,
+    string &output,
     const p_teca_cf_reader &cf_reader,
     const p_teca_cartesian_mesh_writer &vtk_writer,
     const p_teca_index_executive exec)
@@ -74,7 +108,6 @@ int parse_command_line(int argc, char **argv, int rank,
     }
 
     string regex;
-    string output;
     string x_ax = "lon";
     string y_ax = "lat";
     string z_ax = "";
