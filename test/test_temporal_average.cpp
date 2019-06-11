@@ -1,9 +1,14 @@
 #include "teca_cf_reader.h"
 #include "teca_normalize_coordinates.h"
 #include "teca_temporal_average.h"
+#include "teca_file_util.h"
+#include "teca_cartesian_mesh_reader.h"
 #include "teca_cartesian_mesh_writer.h"
+#include "teca_dataset_diff.h"
 #include "teca_index_executive.h"
+#include "teca_mpi_manager.h"
 #include "teca_system_interface.h"
+#include "teca_mpi.h"
 
 #include <vector>
 #include <string>
@@ -15,6 +20,9 @@ using namespace std;
 
 int main(int argc, char **argv)
 {
+    teca_mpi_manager mpi_man(argc, argv);
+    int rank = mpi_man.get_comm_rank();
+
     teca_system_interface::set_stack_trace_on_error();
 
     if (argc < 7)
@@ -27,7 +35,12 @@ int main(int argc, char **argv)
 
     // parse command line
     string regex = argv[1];
-    string output = argv[2];
+    string baseline = argv[2];
+
+    int have_baseline = 0;
+    if (teca_file_util::file_exists(baseline.c_str()))
+        have_baseline = 1;
+    
     long first_step = atoi(argv[3]);
     long last_step = atoi(argv[4]);
     int filter_width = atoi(argv[5]);
@@ -48,21 +61,36 @@ int main(int argc, char **argv)
     a->set_filter_type(teca_temporal_average::backward);
     a->set_input_connection(c->get_output_port());
 
-    // create the vtk writer connected to the cf reader
-    p_teca_cartesian_mesh_writer w = teca_cartesian_mesh_writer::New();
-    w->set_file_name(output);
-    w->set_input_connection(a->get_output_port());
+    // regression test
+    if (have_baseline)
+    {
+        // run the test
+        p_teca_cartesian_mesh_writer rea = teca_cartesian_mesh_writer::New();
+        rea->set_file_name(baseline);
 
-    // set the executive on the writer to stream time steps
-    p_teca_index_executive exec = teca_index_executive::New();
-    exec->set_start_index(first_step);
-    exec->set_end_index(last_step);
-    exec->set_arrays(arrays);
+        p_teca_dataset_diff diff = teca_dataset_diff::New();
+        diff->set_input_connection(0, rea->get_output_port());
+        diff->set_input_connection(1, a->get_output_port());
+        diff->update();
+    }
+    else
+    {
+        // make a baseline
+        if (rank == 0)
+            cerr << "generating baseline image " << baseline << endl;
 
-    w->set_executive(exec);
+        // set the executive on the writer to stream time steps
+        p_teca_index_executive exec = teca_index_executive::New();
+        exec->set_start_index(first_step);
+        exec->set_end_index(last_step);
+        exec->set_arrays(arrays);
 
-    // run the pipeline
-    w->update();
+        p_teca_cartesian_mesh_writer wri = teca_cartesian_mesh_writer::New();
+        wri->set_input_connection(a->get_output_port());
+        wri->set_file_name(baseline.c_str());
+        wri->set_executive(exec);
+        wri->update();
+    }
 
     return 0;
 }
