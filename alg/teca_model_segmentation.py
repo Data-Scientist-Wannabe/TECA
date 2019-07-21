@@ -6,8 +6,8 @@ import torch.nn.functional as F
 
 class teca_model_segmentation:
     """
-    Computes summary statistics, histograms on sorted, classified,
-    TC trajectory output.
+    Given an input field of integrated vapor transport,
+    calculates the probability of AR presence at each gridcell.
     """
     @staticmethod
     def New():
@@ -16,21 +16,22 @@ class teca_model_segmentation:
     def __init__(self):
         self.variable_name = "IVT"
         self.pred_name = self.variable_name + "_PRED"
-        self.model_pt_path = None
+        #self.model_pt_path = None
         self.model = None
-        self.device = None
-        self.is_cuda = True
+        self.device = self.set_torch_device()
 
         self.impl = teca_py.teca_programmable_algorithm.New()
         self.impl.set_number_of_input_connections(1)
         self.impl.set_number_of_output_ports(1)
-        self.impl.set_execute_callback(self.get_tc_activity_execute(self))
+        self.impl.set_execute_callback(self.get_predictions_execute())
 
     def __str__(self):
-        ms_str = 'variable_name=%s, pred_name=%d, model_pt_path=%s, is_cuda=%s\n\n'%( \
-            self.variable_name, self.pred_name, self.model_pt_path, str(self.is_cuda))
+        ms_str = 'variable_name=%s, pred_name=%d\n\n'%( \
+            self.variable_name, self.pred_name)
 
-        ms_str += 'model:\n%s'%(str(self.model))
+        ms_str += 'model:\n%s\n\n'%(str(self.model))
+
+        ms_str += 'device:\n%s\n'%(str(self.device))
 
         return ms_str
 
@@ -46,14 +47,27 @@ class teca_model_segmentation:
         """
         self.pred_name = name
 
-    def set_torch_device(self, is_cuda=True):
+    def set_torch_device(self, device="cuda"):
         """
         Set to True or False to choose Pytorch's device
         (True for cuda or False for cpu)
         """
-        if not is_cuda:
-            self.is_cuda = False
+        if not torch.cuda.is_available():
+            # TODO if this is part of a parallel pipeline then
+            # only rank 0 should report an error.
+            sys.stderr.write('ERROR: Couldn\' set device, CUDA is not available\n')
+            return teca_cartesian_mesh.New()
 
+        self.device = torch.device(device)
+
+    def set_model(self, model):
+        """
+        set Pytorch pretrained model 
+        """
+        self.model = model
+        self.model.eval()
+
+    '''
     def set_model_pt_path(self, model_pt_path):
         """
         set file path of the pretrained model that will be loaded by Pytorch
@@ -67,6 +81,7 @@ class teca_model_segmentation:
             self.device = torch.device("cpu")
             self.model = torch.load(self.model_pt_path)
         self.model.eval()
+    '''
 
     def set_input_connection(self, obj):
         """
@@ -139,8 +154,7 @@ class teca_model_segmentation:
                 sys.stderr.write('ERROR: empty input, or not a mesh\n')
                 return teca_cartesian_mesh.New()
 
-
-            if self.model_pt_path is None:
+            if self.model is None:
                 # TODO if this is part of a parallel pipeline then
                 # only rank 0 should report an error.
                 sys.stderr.write('ERROR: pretrained model has not been specified\n')
@@ -153,12 +167,12 @@ class teca_model_segmentation:
 
             var_array = arrays[self.variable_name]
             var_array = np.reshape(var_array, [len(lat), len(lon)])
-            var_array = torch.from_numpy(var_array).to(device)
+            var_array = torch.from_numpy(var_array).to(self.device)
 
             # Disabling gradient calculation for efficiency
             # as backpropagation won't be called
             with torch.no_grad():
-                pred = F.sigmoid(model(var_array))
+                pred = F.sigmoid(self.model(var_array))
 
             if pred is None:
                 # TODO if this is part of a parallel pipeline then
