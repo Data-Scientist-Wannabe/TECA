@@ -49,16 +49,16 @@ class teca_model_segmentation:
 
     def set_torch_device(self, device="cuda"):
         """
-        Set to True or False to choose Pytorch's device
-        (True for cuda or False for cpu)
+        Set device to either 'cuda' or 'cpu'
         """
-        if not torch.cuda.is_available():
+        if device == "cuda" and not torch.cuda.is_available():
             # TODO if this is part of a parallel pipeline then
             # only rank 0 should report an error.
-            sys.stderr.write('ERROR: Couldn\' set device, CUDA is not available\n')
-            return teca_cartesian_mesh.New()
+            sys.stderr.write('ERROR: Couldn\' set device to cuda, cuda is not available\n')
+            return False
 
         self.device = torch.device(device)
+        return True
 
     def set_model(self, model):
         """
