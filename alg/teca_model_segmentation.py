@@ -47,7 +47,7 @@ class teca_model_segmentation:
         """
         self.pred_name = name
 
-    def set_torch_device(self, device="cuda"):
+    def set_torch_device(self, device="cpu"):
         """
         Set device to either 'cuda' or 'cpu'
         """
