@@ -107,7 +107,7 @@ class teca_model_segmentation:
         that will hold the output predictions of the used model.
         """
         def report(port, rep_in):
-            rep = teca_metadata(rep_in)
+            rep = teca_py.teca_metadata(rep_in)
 
             if not rep['variables']:
                 rep['variables'] = []
@@ -125,7 +125,7 @@ class teca_model_segmentation:
         that the pretrained model will process.
         """
         def request(port, md_in, req_in):
-            req = teca_metadata(req_in)
+            req = teca_py.teca_metadata(req_in)
 
             if not req['arrays']:
                 req['arrays'] = []
@@ -146,19 +146,19 @@ class teca_model_segmentation:
             the torch model and get the segmentation results as an 
             output.
             """
-            in_mesh = teca.as_teca_cartesian_mesh(data_in[0])
+            in_mesh = teca_py.as_teca_cartesian_mesh(data_in[0])
 
             if in_mesh is None:
                 # TODO if this is part of a parallel pipeline then
                 # only rank 0 should report an error.
                 sys.stderr.write('ERROR: empty input, or not a mesh\n')
-                return teca_cartesian_mesh.New()
+                return teca_py.teca_cartesian_mesh.New()
 
             if self.model is None:
                 # TODO if this is part of a parallel pipeline then
                 # only rank 0 should report an error.
                 sys.stderr.write('ERROR: pretrained model has not been specified\n')
-                return teca_cartesian_mesh.New()
+                return teca_py.teca_cartesian_mesh.New()
 
             lon = np.array(in_mesh.get_x_coordinates())
             lat = np.array(in_mesh.get_y_coordinates())
