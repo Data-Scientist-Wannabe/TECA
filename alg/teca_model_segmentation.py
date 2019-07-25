@@ -3,6 +3,7 @@ import teca_py
 import numpy as np
 import torch
 import torch.nn.functional as F
+import torch.utils.data as td
 
 class teca_model_segmentation:
     """
@@ -55,10 +56,9 @@ class teca_model_segmentation:
             # TODO if this is part of a parallel pipeline then
             # only rank 0 should report an error.
             sys.stderr.write('ERROR: Couldn\' set device to cuda, cuda is not available\n')
-            return False
+            return torch.device('cpu')
 
-        self.device = torch.device(device)
-        return True
+        return torch.device(device)
 
     def set_model(self, model):
         """
@@ -107,12 +107,19 @@ class teca_model_segmentation:
         that will hold the output predictions of the used model.
         """
         def report(port, rep_in):
-            rep = teca_py.teca_metadata(rep_in)
+            print("report:")
+            print(type(rep_in))
+            print(rep_in)
+            rep_temp = rep_in[0]
+            print(str(rep_temp))
+            rep = teca_py.teca_metadata(rep_temp)
 
             if not rep['variables']:
+                print("==========empty=============")
                 rep['variables'] = []
 
             if self.pred_name:
+                print("==========full=============")
                 rep['variables'].append(self.pred_name)
 
             return rep
@@ -125,16 +132,48 @@ class teca_model_segmentation:
         that the pretrained model will process.
         """
         def request(port, md_in, req_in):
+            if not self.variable_name:
+                # TODO if this is part of a parallel pipeline then
+                # only rank 0 should report an error.
+                sys.stderr.write('ERROR: No variable to request specifed\n')
+                return []
+
+            print("request:")
+            print(type(req_in))
+            print(req_in)
+            print(str(req_in))
             req = teca_py.teca_metadata(req_in)
 
-            if not req['arrays']:
-                req['arrays'] = []
+            arrays = []
+            if req.has('arrays'):
+                arrays = req['arrays']
             
-            if self.variable_name:
-                req['arrays'].append(self.variable_name)
+            arrays.append(self.variable_name)
+            req['arrays'] = arrays
 
             return [req]
         return request
+
+    def pad(self, image):
+        target_shape = 128 * np.ceil(image.shape[1]/128.0)
+        target_shape_diff = target_shape - image.shape[1]
+        padding_amount = (int(np.ceil(target_shape_diff / 2.0)), int(np.floor(target_shape_diff / 2.0)))
+        #image = image[np.newaxis,...]
+        assert(len(image.shape) == 3), "The image does not have three dimensions!"
+        image = np.pad(image, ((0,0),padding_amount,(0,0)), 'constant', constant_values=0)
+
+        target_shape = 64 * np.ceil(image.shape[2]/64.0)
+        target_shape_diff = target_shape - image.shape[2]
+        padding_amount = (int(np.ceil(target_shape_diff / 2.0)), int(np.floor(target_shape_diff / 2.0)))
+        image = np.pad(image, ((0,0),(0,0),padding_amount), 'constant', constant_values=0)
+
+        image = image.astype('float32')
+        new_image = np.zeros((1, 3, image.shape[1], image.shape[2])).astype('float32')
+        for i in range(3):
+            new_image[0, i,...] = image
+
+        #new_image = np.reshape(new_image, [1, len(lat), len(lon)])
+        return new_image
 
     def get_predictions_execute(self):
         """
@@ -146,6 +185,10 @@ class teca_model_segmentation:
             the torch model and get the segmentation results as an 
             output.
             """
+            print("execute:")
+            print(type(data_in))
+            #print(data_in[0])
+            #data_in = data_in[0]
             in_mesh = teca_py.as_teca_cartesian_mesh(data_in[0])
 
             if in_mesh is None:
@@ -166,23 +209,39 @@ class teca_model_segmentation:
             arrays = in_mesh.get_point_arrays()
 
             var_array = arrays[self.variable_name]
-            var_array = np.reshape(var_array, [len(lat), len(lon)])
+            print("var_array.len: %s" % (str(len(var_array))))
+            print("lat.len: %s" % (str(len(lat))))
+            print("lon.len: %s" % (str(len(lon))))
+            var_array = np.reshape(var_array, [1, len(lat), len(lon)])
+            var_array = self.pad(var_array)
             var_array = torch.from_numpy(var_array).to(self.device)
+            print("var_array.shape: %s" % (str(var_array.shape))) 
 
-            # Disabling gradient calculation for efficiency
-            # as backpropagation won't be called
             with torch.no_grad():
                 pred = F.sigmoid(self.model(var_array))
+
+
+            #test_data_loader  = td.DataLoader(var_array, batch_size=1, shuffle=True, num_workers=1) 
+            # Disabling gradient calculation for efficiency
+            # as backpropagation won't be called
+            #for i, data in enumerate(test_data_loader):
+            #    with torch.no_grad():
+            #        pred = F.sigmoid(self.model(data))
 
             if pred is None:
                 # TODO if this is part of a parallel pipeline then
                 # only rank 0 should report an error.
                 sys.stderr.write('ERROR: Model failed to get predictions\n')
-                return teca_cartesian_mesh.New()
-
+                return teca_py.teca_cartesian_mesh.New()
+            
+            out_mesh = teca_py.teca_cartesian_mesh.New()
+            #out_mesh = in_mesh.new_instance()
             out_mesh.shallow_copy(in_mesh)
+            print(type(pred))
+            print(type(pred.numpy()))
 
-            out_mesh.get_point_arrays().set(self.pred_name, pred)
+            out_mesh.get_point_arrays().set(self.pred_name, pred.numpy())
+            #out_mesh.get_point_arrays().set(self.pred_name, )
 
             return out_mesh
         return execute
