@@ -55,7 +55,11 @@ int main(int argc, char **argv)
     if (have_baseline)
     {
         // run the test
+<<<<<<< HEAD
         p_teca_cartesian_mesh_reader rea = teca_cartesian_mesh_reader::New();
+=======
+        p_teca_cartesian_mesh_writer rea = teca_cartesian_mesh_writer::New();
+>>>>>>> b44a681acbc7a6764eb9542ee648b9ac31c77aca
         rea->set_file_name(baseline);
 
         p_teca_dataset_diff diff = teca_dataset_diff::New();

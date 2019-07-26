@@ -88,6 +88,29 @@ int main(int argc, char **argv)
         vtk_writer->update();
     }
 
+    // regression test
+    if (have_baseline)
+    {
+        // run the test
+        p_teca_cartesian_mesh_writer rea = teca_cartesian_mesh_writer::New();
+        rea->set_file_name(baseline);
+
+        p_teca_dataset_diff diff = teca_dataset_diff::New();
+        diff->set_input_connection(0, rea->get_output_port());
+        diff->set_input_connection(1, coords->get_output_port());
+        diff->update();
+    }
+    else
+    {
+        // make a baseline
+        if (rank == 0)
+            cerr << "generating baseline image " << baseline << endl;
+
+        vtk_writer->set_input_connection(coords->get_output_port());
+        vtk_writer->set_executive(exec);
+        vtk_writer->update();
+    }
+
     return 0;
 }
 
