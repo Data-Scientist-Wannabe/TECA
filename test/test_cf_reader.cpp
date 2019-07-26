@@ -57,18 +57,20 @@ int main(int argc, char **argv)
     vtk_writer->set_executive(exec);
 
     // run the pipeline
-    vtk_writer->update();
+    //vtk_writer->update();
 
     // regression test
     if (have_baseline)
     {
         // run the test
-        p_teca_cartesian_mesh_writer rea = teca_cartesian_mesh_writer::New();
+        p_teca_cartesian_mesh_reader rea = teca_cartesian_mesh_reader::New();
         rea->set_file_name(baseline);
 
         p_teca_dataset_diff diff = teca_dataset_diff::New();
         diff->set_input_connection(0, rea->get_output_port());
         diff->set_input_connection(1, coords->get_output_port());
+        diff->set_executive(exec);
+        
         diff->update();
     }
     else
@@ -77,8 +79,12 @@ int main(int argc, char **argv)
         if (rank == 0)
             cerr << "generating baseline image " << baseline << endl;
 
-        vtk_writer->set_input_connection(coords->get_output_port());
-        vtk_writer->set_executive(exec);
+
+        //p_teca_cartesian_mesh_writer wri = teca_cartesian_mesh_writer::New();
+        //wri->set_input_connection(coords->get_output_port());
+        //wri->set_file_name(baseline.c_str());
+        //wri->update();
+
         vtk_writer->update();
     }
 

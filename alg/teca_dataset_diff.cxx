@@ -402,6 +402,20 @@ int teca_dataset_diff::compare_array_collections(
     const_p_teca_array_collection reference_arrays,
     const_p_teca_array_collection data_arrays)
 {
+    std::cerr << "=================================" << std::endl;
+    std::cerr << "reference_arrays:" << std::endl;
+    for (unsigned int i = 0; i < reference_arrays->size(); ++i)
+    {
+        std::cerr << reference_arrays->get_name(i) << std::endl;
+    }
+
+    std::cerr << "data_arrays:" << std::endl;
+    for (unsigned int i = 0; i < data_arrays->size(); ++i)
+    {
+        std::cerr << data_arrays->get_name(i) << std::endl;
+    }
+
+
     // The data arrays should contain all the data in the reference arrays.
     for (unsigned int i = 0; i < reference_arrays->size(); ++i)
     {
