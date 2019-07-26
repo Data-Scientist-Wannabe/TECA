@@ -17,7 +17,8 @@ class teca_model_segmentation:
     def __init__(self):
         self.variable_name = "IVT"
         self.pred_name = self.variable_name + "_PRED"
-        #self.model_pt_path = None
+        self.transform_fn = None
+        self.transport_fn_args = None
         self.model = None
         self.device = self.set_torch_device()
 
@@ -38,15 +39,36 @@ class teca_model_segmentation:
 
     def set_variable_name(self, name):
         """
-        set the variable name that will be inputed to the segmentation model
+        set the variable name that will be inputed to the model
         """
         self.variable_name = name
 
     def set_pred_name(self, name):
         """
-        set the variable name that will be inputed to the segmentation model
+        set the variable name that will be the output to the model
         """
         self.pred_name = name
+
+    def set_transform_fn(self, fn, *args):
+        """
+        if the data need to be transformed in a way then a function
+        could be provided to be applied on the requested data before
+        running it to the model.
+        """
+        if not hasattr(fn, '__call__'):
+            sys.stderr.write('ERROR: The provided data transform function \
+                is not a function\n')
+            return False
+
+        if not args:
+            sys.stderr.write('ERROR: The provided data transform function \
+                must at least have 1 argument -- the data array object to \
+                apply the transformation on.\n')
+            return False
+
+        self.transform_fn = fn
+        self.transport_fn_args = args
+        return True
 
     def set_torch_device(self, device="cpu"):
         """
@@ -55,7 +77,8 @@ class teca_model_segmentation:
         if device == "cuda" and not torch.cuda.is_available():
             # TODO if this is part of a parallel pipeline then
             # only rank 0 should report an error.
-            sys.stderr.write('ERROR: Couldn\' set device to cuda, cuda is not available\n')
+            sys.stderr.write('ERROR: Couldn\'t set device to cuda, cuda is \
+                not available\n')
             return torch.device('cpu')
 
         return torch.device(device)
@@ -66,22 +89,6 @@ class teca_model_segmentation:
         """
         self.model = model
         self.model.eval()
-
-    '''
-    def set_model_pt_path(self, model_pt_path):
-        """
-        set file path of the pretrained model that will be loaded by Pytorch
-        """
-        self.model_pt_path = model_pt_path
-
-        if self.is_cuda and torch.cuda.is_available():
-            self.device = torch.device("cuda")
-            self.model = torch.load(self.model_pt_path).cuda()
-        else:
-            self.device = torch.device("cpu")
-            self.model = torch.load(self.model_pt_path)
-        self.model.eval()
-    '''
 
     def set_input_connection(self, obj):
         """
@@ -107,19 +114,17 @@ class teca_model_segmentation:
         that will hold the output predictions of the used model.
         """
         def report(port, rep_in):
-            print("report:")
-            print(type(rep_in))
-            print(rep_in)
+            #print("report:")
+            #print(type(rep_in))
+            #print(rep_in)
             rep_temp = rep_in[0]
-            print(str(rep_temp))
+            #print(str(rep_temp))
             rep = teca_py.teca_metadata(rep_temp)
 
             if not rep['variables']:
-                print("==========empty=============")
                 rep['variables'] = []
 
             if self.pred_name:
-                print("==========full=============")
                 rep['variables'].append(self.pred_name)
 
             return rep
@@ -138,10 +143,10 @@ class teca_model_segmentation:
                 sys.stderr.write('ERROR: No variable to request specifed\n')
                 return []
 
-            print("request:")
-            print(type(req_in))
-            print(req_in)
-            print(str(req_in))
+            #print("request:")
+            #print(type(req_in))
+            #print(req_in)
+            #print(str(req_in))
             req = teca_py.teca_metadata(req_in)
 
             arrays = []
@@ -153,27 +158,6 @@ class teca_model_segmentation:
 
             return [req]
         return request
-
-    def pad(self, image):
-        target_shape = 128 * np.ceil(image.shape[1]/128.0)
-        target_shape_diff = target_shape - image.shape[1]
-        padding_amount = (int(np.ceil(target_shape_diff / 2.0)), int(np.floor(target_shape_diff / 2.0)))
-        #image = image[np.newaxis,...]
-        assert(len(image.shape) == 3), "The image does not have three dimensions!"
-        image = np.pad(image, ((0,0),padding_amount,(0,0)), 'constant', constant_values=0)
-
-        target_shape = 64 * np.ceil(image.shape[2]/64.0)
-        target_shape_diff = target_shape - image.shape[2]
-        padding_amount = (int(np.ceil(target_shape_diff / 2.0)), int(np.floor(target_shape_diff / 2.0)))
-        image = np.pad(image, ((0,0),(0,0),padding_amount), 'constant', constant_values=0)
-
-        image = image.astype('float32')
-        new_image = np.zeros((1, 3, image.shape[1], image.shape[2])).astype('float32')
-        for i in range(3):
-            new_image[0, i,...] = image
-
-        #new_image = np.reshape(new_image, [1, len(lat), len(lon)])
-        return new_image
 
     def get_predictions_execute(self):
         """
@@ -203,8 +187,8 @@ class teca_model_segmentation:
                 sys.stderr.write('ERROR: pretrained model has not been specified\n')
                 return teca_py.teca_cartesian_mesh.New()
 
-            lon = np.array(in_mesh.get_x_coordinates())
             lat = np.array(in_mesh.get_y_coordinates())
+            lon = np.array(in_mesh.get_x_coordinates())
 
             arrays = in_mesh.get_point_arrays()
 
@@ -212,21 +196,14 @@ class teca_model_segmentation:
             print("var_array.len: %s" % (str(len(var_array))))
             print("lat.len: %s" % (str(len(lat))))
             print("lon.len: %s" % (str(len(lon))))
-            var_array = np.reshape(var_array, [1, len(lat), len(lon)])
-            var_array = self.pad(var_array)
+
+            if transform_fn:
+                var_array = self.transform(var_array, *self.transport_fn_args)
+
             var_array = torch.from_numpy(var_array).to(self.device)
-            print("var_array.shape: %s" % (str(var_array.shape))) 
 
             with torch.no_grad():
                 pred = F.sigmoid(self.model(var_array))
-
-
-            #test_data_loader  = td.DataLoader(var_array, batch_size=1, shuffle=True, num_workers=1) 
-            # Disabling gradient calculation for efficiency
-            # as backpropagation won't be called
-            #for i, data in enumerate(test_data_loader):
-            #    with torch.no_grad():
-            #        pred = F.sigmoid(self.model(data))
 
             if pred is None:
                 # TODO if this is part of a parallel pipeline then
@@ -235,10 +212,10 @@ class teca_model_segmentation:
                 return teca_py.teca_cartesian_mesh.New()
             
             out_mesh = teca_py.teca_cartesian_mesh.New()
-            #out_mesh = in_mesh.new_instance()
             out_mesh.shallow_copy(in_mesh)
             print(type(pred))
             print(type(pred.numpy()))
+            print(pred)
 
             out_mesh.get_point_arrays().set(self.pred_name, pred.numpy())
             #out_mesh.get_point_arrays().set(self.pred_name, )
