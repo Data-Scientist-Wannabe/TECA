@@ -3,7 +3,6 @@ import teca_py
 import numpy as np
 import torch
 import torch.nn.functional as F
-import torch.utils.data as td
 
 class teca_model_segmentation:
     """
@@ -197,8 +196,8 @@ class teca_model_segmentation:
             print("lat.len: %s" % (str(len(lat))))
             print("lon.len: %s" % (str(len(lon))))
 
-            if transform_fn:
-                var_array = self.transform(var_array, *self.transport_fn_args)
+            if self.transform_fn:
+                var_array = self.transform_fn(var_array, *self.transport_fn_args)
 
             var_array = torch.from_numpy(var_array).to(self.device)
 
