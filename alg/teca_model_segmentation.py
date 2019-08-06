@@ -212,12 +212,16 @@ class teca_model_segmentation:
             
             out_mesh = teca_py.teca_cartesian_mesh.New()
             out_mesh.shallow_copy(in_mesh)
+            print("pred:")
             print(type(pred))
             print(type(pred.numpy()))
+            print(pred.shape)
             print(pred)
+            print("pred.numpy().flatten().shape")
+            print(pred.numpy().flatten().shape)
 
-            out_mesh.get_point_arrays().set(self.pred_name, pred.numpy())
-            #out_mesh.get_point_arrays().set(self.pred_name, )
-
+            pred = teca_py.teca_variant_array.New(pred.numpy().flatten())
+            out_mesh.get_point_arrays().set(self.pred_name, pred)
+            
             return out_mesh
         return execute
