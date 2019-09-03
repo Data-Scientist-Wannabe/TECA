@@ -10,3 +10,10 @@ export MPLBACKEND=Agg
 export TMPDIR=/tmp
 mkdir build
 ctest -S ${DASHROOT}/test/travis_ci/ctest_osx.cmake -V --timeout 180
+status=$?
+if [ ${status} -ne 0 ]
+then
+    exit 1
+else
+    exit 0
+fi

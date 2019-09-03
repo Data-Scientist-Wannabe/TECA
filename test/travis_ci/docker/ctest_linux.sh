@@ -15,3 +15,10 @@ mkdir build
 cmake --version
 
 ctest -S ${DASHROOT}/test/travis_ci/docker/ctest_linux.cmake -V --timeout 180
+status=$?
+if [ ${status} -ne 0 ]
+then
+    exit 1
+else
+    exit 0
+fi
