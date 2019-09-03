@@ -52,3 +52,8 @@ wri.set_executive(exe)
 wri.set_file_name(out_file)
 
 wri.update()
+
+sys.stderr.write('make the test failed!\n')
+sys.exit(-1)
+
+
