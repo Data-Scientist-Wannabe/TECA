@@ -18,7 +18,9 @@ ctest -S ${DASHROOT}/test/travis_ci/docker/ctest_linux.cmake -V --timeout 180
 status=$?
 if [ ${status} -ne 0 ]
 then
+    echo "TESTS FAILED! $?" 
     exit 1
 else
+    echo "TESTS PASSED! $?" 
     exit 0
 fi
