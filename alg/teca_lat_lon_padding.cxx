@@ -118,7 +118,7 @@ teca_metadata teca_lat_lon_padding::get_output_metadata(
 {
 #ifdef TECA_DEBUG
     cerr << teca_parallel_id()
-        << "teca_latitude_damper::get_output_metadata" << endl;
+        << "teca_lat_lon_padding::get_output_metadata" << endl;
 #endif
     (void)port;
 
@@ -143,7 +143,7 @@ std::vector<teca_metadata> teca_lat_lon_padding::get_upstream_request(
 {
 #ifdef TECA_DEBUG
     cerr << teca_parallel_id()
-        << "teca_latitude_damper::get_upstream_request" << endl;
+        << "teca_lat_lon_padding::get_upstream_request" << endl;
 #endif
     (void) port;
     (void) input_md;
@@ -168,8 +168,8 @@ std::vector<teca_metadata> teca_lat_lon_padding::get_upstream_request(
     arrays.insert(field_to_pad);
 
     // Cleaning off the postfix for arrays passed in the pipeline. 
-    // For ex a down stream could request "foo_damped" then we'd
-    // need to request "foo". also remove "foo_damped" from the
+    // For ex a down stream could request "foo_padded" then we'd
+    // need to request "foo". also remove "foo_padded" from the
     // request.
     const std::string &var_post_fix = this->variable_post_fix;
     if (!var_post_fix.empty())
@@ -191,7 +191,7 @@ const_p_teca_dataset teca_lat_lon_padding::execute(
     const teca_metadata &request)
 {
 #ifdef TECA_DEBUG
-    cerr << teca_parallel_id() << "teca_latitude_damper::execute" << endl;
+    cerr << teca_parallel_id() << "teca_lat_lon_padding::execute" << endl;
 #endif
 
     (void)port;
@@ -222,7 +222,7 @@ const_p_teca_dataset teca_lat_lon_padding::execute(
         return nullptr;
     }
 
-    // set the damped array in the output
+    // set the padded array in the output name
     std::string out_var_name = field_var + this->variable_post_fix;
 
     // get the output metadata to add results to after the filter is applied
