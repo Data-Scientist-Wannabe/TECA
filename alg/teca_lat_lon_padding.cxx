@@ -222,6 +222,12 @@ const_p_teca_dataset teca_lat_lon_padding::execute(
         return nullptr;
     }
 
+    // set the damped array in the output
+    std::string out_var_name = field_var + this->variable_post_fix;
+
+    // get the output metadata to add results to after the filter is applied
+    teca_metadata &out_metadata = out_mesh->get_metadata();
+
     size_t py_low = this->get_py_low();
     size_t py_high = this->get_py_high();
     size_t px_low = this->get_px_low();
@@ -261,11 +267,14 @@ const_p_teca_dataset teca_lat_lon_padding::execute(
             ::apply_padding(p_padded_array, p_field_array,
                             n_lat, n_lon, py_low, px_low, nx_new);
 
-            // set the damped array in the output
-            std::string out_var_name = field_var + this->variable_post_fix;
             out_mesh->get_point_arrays()->set(out_var_name, padded_array);
         )
     }
+
+    out_metadata.set(out_var_name + "_py_low", _py_low);
+    out_metadata.set(out_var_name + "_py_high", py_high);
+    out_metadata.set(out_var_name + "_px_low", px_low);
+    out_metadata.set(out_var_name + "_px_high", px_high);
 
     return out_mesh;
 }
