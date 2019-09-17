@@ -31,33 +31,23 @@
 #include <boost/program_options.hpp>
 #endif
 
-/*
-   void property_reduce(std::string property_name,
-                        p_teca_dataset dataset_0,
-                        p_teca_dataset dataset_1,
-                        p_teca_cartesian_mesh mesh_out)
 
-    input:
-    ------
-
-      property_name : (std::string) the key of the metadata property in dataset_* on which to do the reduction
-
-      dataset_0     : (p_teca_dataset) the LHS dataset in the reduction
-
-      dataset_1     : (p_teca_dataset) the RHS dataset in the reduction
-
-      mesh_out      : (p_teca_cartesian_mesh) the output of the reduction
-
-    This routine appends the contents of dataset_0.get_metadata.get(property_name) onto that from dataset_0 and
-    overwrites the contents `property_name' in the metadata of mesh_out.
-
- */
+// This routine appends the contents of dataset_0.get_metadata.get(property_name)
+// onto that from dataset_0 and overwrites the contents `property_name' in the
+// metadata of mesh_out.
+//
+//   property_name : (std::string) the key of the metadata property in
+//                   dataset_* on which to do the reduction
+//
+//   dataset_0     : (p_teca_dataset) the LHS dataset in the reduction
+//
+//   dataset_1     : (p_teca_dataset) the RHS dataset in the reduction
+//
+//   mesh_out      : (p_teca_cartesian_mesh) the output of the reduction
 void property_reduce(std::string property_name,
-                     p_teca_dataset dataset_0,
-                     p_teca_dataset dataset_1,
-                     p_teca_cartesian_mesh mesh_out)
+    p_teca_dataset dataset_0, p_teca_dataset dataset_1,
+    p_teca_cartesian_mesh mesh_out)
 {
-
     // declare the LHS and RHS property vectors
     std::vector<double> property_vector_0;
     std::vector<double> property_vector_1;
@@ -68,7 +58,8 @@ void property_reduce(std::string property_name,
 
     // construct the output property vector by concatenating LHS and RHS vectors
     std::vector<double> property_vector(property_vector_0);
-    property_vector.insert(property_vector.end(), property_vector_1.begin(), property_vector_1.end());
+    property_vector.insert(property_vector.end(), property_vector_1.begin(),
+        property_vector_1.end());
 
     // Overwrite the concatenated property vector in the output dataset
     mesh_out->get_metadata().set(property_name, property_vector);
@@ -218,6 +209,8 @@ public:
         p_teca_dataset dataset_1 = std::const_pointer_cast<teca_dataset>(right);
 
         p_teca_variant_array prob_out;
+        p_teca_variant_array n_wvcc_out;
+        p_teca_variant_array pt_row_out;
 
         if (dataset_0 && dataset_1)
         {
@@ -225,10 +218,22 @@ public:
             p_teca_cartesian_mesh mesh_0 = std::dynamic_pointer_cast<teca_cartesian_mesh>(dataset_0);
             p_teca_variant_array wvcc_0 = mesh_0->get_point_arrays()->get(this->component_array_name);
             p_teca_variant_array prob_0 = mesh_0->get_point_arrays()->get(this->probability_array_name);
+            p_teca_variant_array n_wvcc_0 = mesh_0->get_information_arrays()->get("ar_count");
+            p_teca_variant_array pt_row_0 = mesh_0->get_information_arrays()->get("parameter_table_row");
 
             p_teca_cartesian_mesh mesh_1 = std::dynamic_pointer_cast<teca_cartesian_mesh>(dataset_1);
-            p_teca_variant_array wvcc_1 = mesh_0->get_point_arrays()->get(this->component_array_name);
+            p_teca_variant_array wvcc_1 = mesh_1->get_point_arrays()->get(this->component_array_name);
             p_teca_variant_array prob_1 = mesh_1->get_point_arrays()->get(this->probability_array_name);
+            p_teca_variant_array n_wvcc_1 = mesh_1->get_information_arrays()->get("ar_count");
+            p_teca_variant_array pt_row_1 = mesh_1->get_information_arrays()->get("parameter_table_row");
+
+/*            int n_wvcc_0 = 0, pt_row_0 = 0;
+            mesh_0->get_metadata().get("number_of_components", n_wvcc_0);
+            mesh_0->get_metadata().get("parameter_table_row", pt_row_0);
+
+            int n_wvcc_1 = 0, pt_row_1 = 0;
+            mesh_1->get_metadata().get("number_of_components", n_wvcc_1);
+            mesh_1->get_metadata().get("parameter_table_row", pt_row_1);*/
 
             if (prob_0 && prob_1)
             {
@@ -243,6 +248,14 @@ public:
                     for (unsigned long i = 0; i < n_vals; ++i)
                         p_prob_out[i] += p_prob_1[i];
                     )
+
+                // concatenate ar couunt and parameter table row
+                n_wvcc_out = n_wvcc_0->new_copy();
+                n_wvcc_out->append(n_wvcc_1);
+
+                pt_row_out = pt_row_0->new_copy();
+                pt_row_out->append(
+
             }
             else if (prob_0 || prob_1)
             {
