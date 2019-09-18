@@ -26,10 +26,11 @@ set(teca_alg_cxx_srcs
     teca_evaluate_expression.cxx
     teca_geography.cxx
     teca_l2_norm.cxx
-    teca_lat_lon_padding.cxx
     teca_latitude_damper.cxx
     teca_laplacian.cxx
     teca_mask.cxx
+    teca_mesh_padding.cxx
+    teca_mesh_layering.cxx
     teca_normalize_coordinates.cxx
     teca_parser.cxx
     teca_programmable_algorithm.cxx
