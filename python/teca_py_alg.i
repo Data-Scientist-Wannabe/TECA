@@ -102,6 +102,22 @@
 %include "teca_mask.h"
 
 /***************************************************************************
+ mesh_padding
+ ***************************************************************************/
+%ignore teca_mesh_padding::shared_from_this;
+%shared_ptr(teca_mesh_padding)
+%ignore teca_mesh_padding::operator=;
+%include "teca_mesh_padding.h"
+
+/***************************************************************************
+ mesh_layering
+ ***************************************************************************/
+%ignore teca_mesh_layering::shared_from_this;
+%shared_ptr(teca_mesh_layering)
+%ignore teca_mesh_layering::operator=;
+%include "teca_mesh_layering.h"
+
+/***************************************************************************
  table_reduce
  ***************************************************************************/
 %ignore teca_table_reduce::shared_from_this;
