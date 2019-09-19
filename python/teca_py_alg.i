@@ -23,6 +23,8 @@
 #include "teca_l2_norm.h"
 #include "teca_laplacian.h"
 #include "teca_mask.h"
+#include "teca_mesh_padding.h"
+#include "teca_mesh_layering.h"
 #include "teca_normalize_coordinates.h"
 #include "teca_programmable_algorithm.h"
 #include "teca_programmable_reduce.h"
