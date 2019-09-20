@@ -45,7 +45,7 @@ else()
             set(tmp "${tmp} -stdlib=libc++")
         endif()
         if ("${CMAKE_BUILD_TYPE}" MATCHES "Release")
-            set(tmp "${tmp}")
+            set(tmp "${tmp} -mcpu=power9 -mtune=power9")
         endif()
         set(CMAKE_CXX_FLAGS "${tmp}"
             CACHE STRING "TECA build defaults"
@@ -54,7 +54,7 @@ else()
     if (NOT CMAKE_Fortran_FLAGS)
         set(tmp "-Wall -Wextra -Wno-conversion")
         if (CMAKE_BUILD_TYPE STREQUAL "Release")
-            set(tmp "${tmp}")
+            set(tmp "${tmp} -mcpu=power9 -mtune=power9")
         endif()
         set(CMAKE_Fortran_FLAGS "${tmp}"
             CACHE STRING "TECA build defaults"
